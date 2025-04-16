@@ -31,10 +31,10 @@ colnames(WDI) <- c(
     "patent_res",   # Patents by residents
     "patent_nres"   # Patents by non-residents
 )
-WDI <- WDI %>% # Add GDP growth rate variable (as percentage)
-  arrange(country, year) %>%
-  group_by(country) %>%
-  mutate(gdp_growth = (gdp_pc / lag(gdp_pc) - 1) * 100) %>%
+WDI <- WDI |> # Add GDP growth rate variable (as percentage)
+  arrange(country, year) |>
+  group_by(country) |>
+  mutate(gdp_growth = (gdp_pc / lag(gdp_pc) - 1) * 100) |>
   ungroup()
 WDI <- WDI |> 
   mutate(ln_gdp_pc = log(gdp_pc)) |> #  Log GDP per capita
