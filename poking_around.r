@@ -1,5 +1,6 @@
 library(ggplot2)
 library(patchwork)
+library(dplyr)
 
 Import <- read.csv("/Users/leozucker/Desktop/Grad School/Brown PhD in Economics/Coursework/Applied Economics Analysis (ECON2020)/Final Project/DIRECTORY/ECON2020-Final-Project/P_Data_Extract_From_World_Development_Indicators/8ca27f96-b8dd-4a49-b4d7-36056de6805b_Data.csv")
 WDI <- Import[1:(min(which(is.na(Import$Time)))-1),] #Remove rows containing no data at the end of the file
@@ -34,86 +35,31 @@ colnames(WDI) <- c(
     "patent_res",   # Patents by residents
     "patent_nres"   # Patents by non-residents
 )
+WDI <- WDI %>% # Add GDP growth rate variable (as percentage)
+  arrange(country, year) %>%
+  group_by(country) %>%
+  mutate(gdp_growth = (gdp_pc / lag(gdp_pc) - 1) * 100) %>%
+  ungroup()
+WDI <- WDI |> 
+  mutate(ln_gdp_pc = log(gdp_pc)) |> #  Log GDP per capita
+  mutate(ln_patent_res = log(patent_res))
+WDI$Income <- cut(WDI$gdp_pc, 
+                      breaks = c(0, 1045, 4125, 12735, 999999),
+                      labels = c("Low", "Lower Middle", "Upper Middle", "High"),
+                      include.lowest = TRUE)
 
-create_age_plots <- function(x_var, x_min = NULL, x_max = NULL, startyr = NULL, endyr = NULL, yrjump = NULL) {
-  # Generate sequence of years at which data should be observed
-  years <- seq(startyr, endyr, by = yrjump)
-  
-  # Create empty lists for each age group
-  plots_0_14 <- plots_15_64 <- plots_65_plus <- list()
-  
-  # Generate plots for each year
-  for(y in 1:length(years)) {
-    current_year <- years[y]
-    
-    # Create plots for each age group
-    plots_0_14[[y]] <- ggplot(data = subset(WDI, year == current_year & get(x_var) >= x_min & get(x_var) <= x_max)) + 
-      geom_point(aes(x = get(x_var), y = pop_0_14_pct)) + 
-      ggtitle(paste(current_year)) +
-      xlab(x_var)
-    
-    plots_15_64[[y]] <- ggplot(data = subset(WDI, year == current_year & get(x_var) >= x_min & get(x_var) <= x_max)) + 
-      geom_point(aes(x = get(x_var), y = pop_15_64_pct)) + 
-      ggtitle(paste(current_year)) +
-      xlab(x_var)
-    
-    plots_65_plus[[y]] <- ggplot(data = subset(WDI, year == current_year & get(x_var) >= x_min & get(x_var) <= x_max)) + 
-      geom_point(aes(x = get(x_var), y = pop_65_plus_pct)) + 
-      ggtitle(paste(current_year)) +
-      xlab(x_var)
-  }
-  
-  # Create row expressions for patchwork
-  row1 <- plots_0_14[[1]]
-  row2 <- plots_15_64[[1]]
-  row3 <- plots_65_plus[[1]]
-  
-  for(i in 2:length(years)) {
-    row1 <- row1 | plots_0_14[[i]]
-    row2 <- row2 | plots_15_64[[i]]
-    row3 <- row3 | plots_65_plus[[i]]
-  }
-  
-  # Return the combined plot
-  return(row1 / row2 / row3)
-}
+source("functions/create_age_plots.r")
 
+create_age_plots("pop_growth", x_min = -5, x_max = 10, startyr = 1961, endyr = 2021, yrjump = 10)
+create_age_plots("gdp_pc", x_min = 0, x_max = 70000, startyr = 1961, endyr = 2021, yrjump = 10)
+create_age_plots("gdp_growth", x_min = -5, x_max = 10, startyr = 1961, endyr = 2021, yrjump = 10)
+create_age_plots("ln_gdp_pc", x_min = -6, x_max = 12, startyr = 1961, endyr = 2021, yrjump = 10)
 
-decade <- seq(1961, 2021, by = 10)
+source("functions/create_popgrowth_plots.r")
 
-pop_growth_x_pct_0_14 <- pop_growth_x_pct_15_64 <- pop_growth_x_pct_65_plus <- list()
-for(y in 1:length(decade)){
-    current_year <- decade[y]
-    pop_growth_x_pct_0_14[[y]] <- ggplot(data = subset(WDI, year == current_year & pop_growth >= -5 & pop_growth <= 10)) + 
-                                    geom_point(aes(x = pop_growth, y = pop_0_14_pct)) + 
-                                    ggtitle(paste(current_year))
-    pop_growth_x_pct_15_64[[y]] <- ggplot(data = subset(WDI, year == current_year & pop_growth >= -5 & pop_growth <= 10)) +
-                                    geom_point(aes(x = pop_growth, y = pop_15_64_pct)) + 
-                                    ggtitle(paste(current_year))
-    pop_growth_x_pct_65_plus[[y]] <- ggplot(data = subset(WDI, year == current_year & pop_growth >= -5 & pop_growth <= 10)) +
-                                    geom_point(aes(x = pop_growth, y = pop_65_plus_pct)) + 
-                                    ggtitle(paste(current_year))
-}
-(pop_growth_x_pct_0_14[[1]] | pop_growth_x_pct_0_14[[2]] | pop_growth_x_pct_0_14[[3]] | pop_growth_x_pct_0_14[[4]] | pop_growth_x_pct_0_14[[5]] | pop_growth_x_pct_0_14[[6]] | pop_growth_x_pct_0_14[[7]]) / 
-    (pop_growth_x_pct_15_64[[1]] | pop_growth_x_pct_15_64[[2]] | pop_growth_x_pct_15_64[[3]] | pop_growth_x_pct_15_64[[4]] | pop_growth_x_pct_15_64[[5]] | pop_growth_x_pct_15_64[[6]] | pop_growth_x_pct_15_64[[7]]) / 
-    (pop_growth_x_pct_65_plus[[1]] | pop_growth_x_pct_65_plus[[2]] | pop_growth_x_pct_65_plus[[3]] | pop_growth_x_pct_65_plus[[4]] | pop_growth_x_pct_65_plus[[5]] | pop_growth_x_pct_65_plus[[6]] | pop_growth_x_pct_65_plus[[7]])
-
-gdp_pc_x_pct_0_14 <- gdp_pc_x_pct_15_64 <- gdp_pc_x_pct_65_plus <- list()
-for(y in 1:length(decade)){
-    current_year <- decade[y]
-    gdp_pc_x_pct_0_14[[y]] <- ggplot(data = subset(WDI, year == current_year & gdp_pc <= 75000)) + 
-                                    geom_point(aes(x = gdp_pc, y = pop_0_14_pct)) + 
-                                    ggtitle(paste(current_year))
-    gdp_pc_x_pct_15_64[[y]] <- ggplot(data = subset(WDI, year == current_year & gdp_pc <= 75000)) +
-                                    geom_point(aes(x = gdp_pc, y = pop_15_64_pct)) + 
-                                    ggtitle(paste(current_year))
-    gdp_pc_x_pct_65_plus[[y]] <- ggplot(data = subset(WDI, year == current_year & gdp_pc <= 75000)) +
-                                    geom_point(aes(x = gdp_pc, y = pop_65_plus_pct)) + 
-                                    ggtitle(paste(current_year))
-}
-(gdp_pc_x_pct_0_14[[1]] | gdp_pc_x_pct_0_14[[2]] | gdp_pc_x_pct_0_14[[3]] | gdp_pc_x_pct_0_14[[4]] | gdp_pc_x_pct_0_14[[5]] | gdp_pc_x_pct_0_14[[6]] | gdp_pc_x_pct_0_14[[7]]) / 
-    (gdp_pc_x_pct_15_64[[1]] | gdp_pc_x_pct_15_64[[2]] | gdp_pc_x_pct_15_64[[3]] | gdp_pc_x_pct_15_64[[4]] | gdp_pc_x_pct_15_64[[5]] | gdp_pc_x_pct_15_64[[6]] | gdp_pc_x_pct_15_64[[7]]) / 
-    (gdp_pc_x_pct_65_plus[[1]] | gdp_pc_x_pct_65_plus[[2]] | gdp_pc_x_pct_65_plus[[3]] | gdp_pc_x_pct_65_plus[[4]] | gdp_pc_x_pct_65_plus[[5]] | gdp_pc_x_pct_65_plus[[6]] | gdp_pc_x_pct_65_plus[[7]])
-
+create_popgrowth_plots("ln_gdp_pc", x1_min = -6, x1_max = 12, 
+                      "gdp_growth", x2_min = -5, x2_max = 10, 
+                      "ln_patent_res", x3_min = 0, x3_max = 15, 
+                      startyr = 1961, endyr = 2021, yrjump = 10)
 
 #Remember to update lockfile!
